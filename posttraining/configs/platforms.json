@@ -1,0 +1,29 @@
+{
+  "gb300": {
+    "runner_label": "cluster:gb300-nv",
+    "runner_partition": "batch_1",
+    "partition": "batch_1",
+    "account": "benchmark",
+    "gpus_per_node": 4,
+    "image": "vllm/vllm-openai:v0.32.0",
+    "srun_extra": ["--container-remap-root"]
+  },
+  "b300": {
+    "runner_label": "cluster:b300-dsxe",
+    "runner_partition": "",
+    "partition": "batch_1",
+    "account": "benchmark",
+    "gpus_per_node": 8,
+    "image": "vllm/vllm-openai:v0.32.0",
+    "srun_extra": ["--mpi=none", "--container-remap-root"]
+  },
+  "mi355x": {
+    "runner_label": "cluster:mi355x-amds",
+    "runner_partition": "",
+    "partition": "compute",
+    "account": "",
+    "gpus_per_node": 8,
+    "image": "vllm/vllm-openai-rocm:v0.32.0",
+    "srun_extra": ["--container-remap-root"]
+  }
+}

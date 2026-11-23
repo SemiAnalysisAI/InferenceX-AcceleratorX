@@ -1,0 +1,21 @@
+{
+ "device": "NVIDIA GB300",
+ "torch": "2.15.0+cu132",
+ "cfg": {
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "prompts_per_step": 16,
+  "group": 8,
+  "max_new": 384,
+  "lr": 4e-05,
+  "lora_r": 64,
+  "micro_bs": 4,
+  "temperature": 1.0,
+  "seed": 0,
+  "logit_noise": 0.0,
+  "sampler_fp8": ""
+ },
+ "steps": 60,
+ "dtype": "bf16",
+ "eval_every": 5,
+ "eval_n": 256
+}

@@ -1,0 +1,13 @@
+{"step": 28, "warmup": true, "lmax": 334, "n_tok": 38561, "t_gen": 99.11270498577505, "t_train": 19.041770506184548}
+{"step": 28, "warmup": false, "lmax": 334, "n_tok": 38561, "t_gen": 17.38959042308852, "t_train": 4.347558677662164}
+{"step": 2, "warmup": false, "lmax": 384, "n_tok": 44910, "t_gen": 22.677538017276675, "t_train": 5.522878605872393}
+{"step": 8, "warmup": false, "lmax": 384, "n_tok": 46262, "t_gen": 20.47102626087144, "t_train": 5.550981587730348}
+{"step": 13, "warmup": false, "lmax": 384, "n_tok": 45675, "t_gen": 21.989013660233468, "t_train": 5.327429035212845}
+{"step": 18, "warmup": false, "lmax": 384, "n_tok": 42834, "t_gen": 20.444477171171457, "t_train": 5.36462410306558}
+{"step": 24, "warmup": false, "lmax": 384, "n_tok": 43298, "t_gen": 21.035713096149266, "t_train": 5.698703585192561}
+{"step": 31, "warmup": false, "lmax": 384, "n_tok": 39868, "t_gen": 22.58579545421526, "t_train": 5.4520552307367325}
+{"step": 37, "warmup": false, "lmax": 384, "n_tok": 40202, "t_gen": 20.17396706342697, "t_train": 5.06206188397482}
+{"step": 43, "warmup": false, "lmax": 384, "n_tok": 40449, "t_gen": 20.234271499793977, "t_train": 5.4619948719628155}
+{"step": 48, "warmup": false, "lmax": 384, "n_tok": 44294, "t_gen": 20.667772443033755, "t_train": 5.09794574836269}
+{"step": 54, "warmup": false, "lmax": 384, "n_tok": 44294, "t_gen": 20.293185150250793, "t_train": 4.9523336119018495}
+{"step": 59, "warmup": false, "lmax": 384, "n_tok": 40338, "t_gen": 21.476462761871517, "t_train": 4.88848468568176}

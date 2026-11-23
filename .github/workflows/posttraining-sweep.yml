@@ -1,0 +1,150 @@
+name: Post-training Sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      sku:
+        description: Platform from posttraining/configs/platforms.json
+        type: choice
+        default: gb300
+        options: [gb300, b300, mi355x]
+      model:
+        description: HF model id (the checked-in reference seeds use Qwen/Qwen2.5-0.5B-Instruct)
+        type: string
+        default: Qwen/Qwen2.5-0.5B-Instruct
+      steps:
+        description: GRPO steps per seed
+        type: number
+        default: 60
+      seed0:
+        description: First seed (one seed per GPU on the node)
+        type: number
+        default: 0
+  pull_request:
+    paths:
+      - posttraining/configs/**
+      - posttraining/launchers/seeds.sh
+      - posttraining/run.sh
+      - .github/workflows/posttraining-sweep.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: posttraining-${{ github.event_name }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  PT_SKU: ${{ inputs.sku || 'gb300' }}
+  PT_REF_DIR: posttraining/results/rung-s-fullft
+  PT_REF_TAG: s05
+  PT_TARGET: '0.45'
+
+jobs:
+  setup:
+    name: Plan post-training run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Resolve runner and score priority
+        id: plan
+        env:
+          PYTHONPATH: inferencex-e2e
+        run: |
+          set -eo pipefail
+          source inferencex-e2e/benchmarks/check_env.sh
+          check_env_vars PT_SKU GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_OUTPUT
+          jq -e --arg s "$PT_SKU" '.[$s]' posttraining/configs/platforms.json >/dev/null
+          jq -c --arg s "$PT_SKU" '[.[$s] | {id: $s, sku: $s, runner: .runner_label, runner_partition,
+              nodes: 1, framework: "posttraining", "node-count": 1}]' posttraining/configs/platforms.json |
+            uv run --no-project --exclude-newer PT12H --python 3.12 --with pyyaml \
+              python -m infx.workflows.ci_priority \
+              --queue-namespace "${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" > scored.json
+          echo "matrix=$(jq -c '{include: .}' scored.json)" >> "$GITHUB_OUTPUT"
+
+  run:
+    if: github.event_name == 'workflow_dispatch'
+    needs: setup
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    runs-on: >- # zizmor: ignore[self-hosted-runner] GPU Slurm runners by design; this job runs only on workflow_dispatch
+      ${{ fromJSON(format('["self-hosted",{0}{1}{2}]',
+        toJSON(matrix.runner),
+        matrix.runner_partition != '' && format(',{0}', toJSON(matrix.runner_partition)) || '',
+        vars.PRIORITY_SCHEDULER_ENABLED == 'true' && format(',{0},{1},{2}',
+          '"nodes:1"',
+          toJSON(format('ci-job-{0}-{1}', matrix.priority, matrix.queue-token)),
+          toJSON(format('ci-attempt-{0}', github.run_attempt))) || '')) }}
+    name: p${{ matrix.priority }} | Post-training ${{ matrix.sku }}
+    env:
+      PT_MODEL: ${{ inputs.model }}
+      PT_STEPS: ${{ format('{0}', inputs.steps) }}
+      PT_SEED0: ${{ format('{0}', inputs.seed0) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Run one seed per GPU
+        run: |
+          set -eo pipefail
+          source inferencex-e2e/benchmarks/check_env.sh
+          check_env_vars PT_SKU PT_MODEL PT_STEPS PT_SEED0 RUNNER_TEMP GITHUB_WORKSPACE
+          # The runner's work tree is on storage the compute nodes mount; keep the HF cache beside it.
+          export HF_HOME="${RUNNER_TEMP%/_temp}/posttraining-hf"
+          posttraining/run.sh "$PT_SKU" --out "$GITHUB_WORKSPACE/posttraining-out" --tag "$PT_SKU" \
+            --model "$PT_MODEL" --seed0 "$PT_SEED0" --steps "$PT_STEPS" --time 180
+      - name: Upload runs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: posttraining-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.sku }}
+          path: |
+            posttraining-out/
+            !posttraining-out/.venv/
+          if-no-files-found: error
+          retention-days: 30
+
+  report:
+    name: Compare against the GB300 reference seeds
+    if: always() && needs.run.result != 'skipped'
+    needs: run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: posttraining-${{ github.run_id }}-*
+          path: arm
+          merge-multiple: true
+      - name: Write E7 table to the job summary
+        run: |
+          set -eo pipefail
+          source inferencex-e2e/benchmarks/check_env.sh
+          check_env_vars PT_SKU PT_REF_DIR PT_REF_TAG PT_TARGET GITHUB_STEP_SUMMARY
+          if [ ! -d "$PT_REF_DIR" ]; then
+            echo "No full-FT reference seeds in $PT_REF_DIR yet; runs are in the artifact." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          mkdir runs
+          ln -s "$PWD/$PT_REF_DIR"/* runs/
+          ln -s "$PWD"/arm/"$PT_SKU"-full-s* runs/
+          uv run --no-project --exclude-newer PT12H --python 3.12 \
+            --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
+            --with torch --with "transformers==5.23.0" --with "datasets==5.2.0" \
+            --with-editable posttraining \
+            python -m ptmini.analyze --runs runs --tag "$PT_REF_TAG" --target "$PT_TARGET" \
+            --arms "$PT_SKU:$PT_REF_TAG" > report.md
+          sed -n '/^### E7/,$p' report.md >> "$GITHUB_STEP_SUMMARY"
