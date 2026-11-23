@@ -1,0 +1,30 @@
+[project]
+name = "ptmini"
+version = "0.1.0"
+description = "Portable small-model GRPO for comparing accelerators on post-training"
+requires-python = ">=3.12"
+dependencies = [
+    "torch>=2.9",
+    "transformers>=4.57",
+    "datasets>=4.0",
+    "nvidia-ml-py>=12; sys_platform == 'linux'",
+]
+
+[project.scripts]
+ptmini = "ptmini.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+extend = "../inferencex-e2e/infx/ruff.toml"
+
+[tool.ruff.lint.per-file-ignores]
+"**/*.py" = ["N812"]  # torch.nn.functional as F
+"optimized/*.py" = ["INP001", "ISC004"]  # standalone script
+# standalone scripts run inside the miles image; asserts guard patch targets and data invariants;
+# jinja renders plain-text prompts, not HTML; the seeded shuffle is not security-relevant
+"miles/*.py" = ["INP001", "S101", "PT018", "S701", "S311"]
+# miles calls these hooks with fixed signatures and hands state from stash_all_samples to log_rollout
+"miles/ptx_rollout_log.py" = ["ARG001", "PLW0603"]

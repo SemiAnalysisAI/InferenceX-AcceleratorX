@@ -1,0 +1,27 @@
+{
+ "device": "NVIDIA GB300",
+ "torch": "2.14.0+cu130",
+ "cfg": {
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "prompts_per_step": 16,
+  "group": 8,
+  "max_new": 384,
+  "lr": 4e-05,
+  "lora_r": 64,
+  "micro_bs": 16,
+  "temperature": 1.0,
+  "seed": 3,
+  "logit_noise": 0.0,
+  "sampler_fp8": ""
+ },
+ "steps": 2,
+ "dtype": "bf16",
+ "eval_every": 5,
+ "eval_n": 256,
+ "sampler": "vllm",
+ "vllm": "0.33.0",
+ "transformers": "5.20.2",
+ "peft": "0.21.3",
+ "gpu_mem": 0.25,
+ "sampling": "SamplingParams(n=1, presence_penalty=0.0, frequency_penalty=0.0, repetition_penalty=1.1, temperature=1.0, watermarking=None, top_p=1.0, top_k=0, min_p=0.0, seed=None, stop=[], stop_token_ids=[], bad_words=[], thinking_token_budget=None, include_stop_str_in_output=False, ignore_eos=False, max_tokens=384, min_tokens=0, logprobs=0, prompt_logprobs=None, skip_special_tokens=True, spaces_between_special_tokens=True, structured_outputs=None, extra_args=None)"
+}
